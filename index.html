@@ -5,153 +5,258 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Calendario de Eventos Zurich</title>
 <style>
-:root{--blue:#0b4f8a;--light:#f4f7fb;--line:#dbe3ec;--text:#203040;--accent:#e6f0fa}
-*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--light);color:var(--text)}
-.wrap{max-width:1100px;margin:30px auto;padding:0 16px}.header{background:#fff;border-radius:18px;padding:22px;box-shadow:0 8px 25px #0001;margin-bottom:18px}
-h1{margin:0 0 6px;color:var(--blue);font-size:28px}.sub{color:#667788}.controls{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
-button,select{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 13px;font-size:15px;cursor:pointer}
-button.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
-.status{margin-top:12px;font-size:13px;color:#667788}.error{color:#b42318}
-.calendar{background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px #0001}
-.title{padding:18px 22px;font-size:21px;font-weight:700;text-transform:capitalize}.grid{display:grid;grid-template-columns:repeat(7,1fr)}
-.dow{background:var(--blue);color:#fff;padding:12px 8px;text-align:center;font-weight:700}
-.day{min-height:125px;border-top:1px solid var(--line);border-right:1px solid var(--line);padding:8px}
-.muted{background:#fafbfd;color:#a2acb7}.num{font-weight:700;font-size:14px;margin-bottom:7px}
-.event{background:var(--accent);border-left:4px solid var(--blue);border-radius:7px;padding:7px;margin-top:5px;font-size:12px;line-height:1.35}
-.event strong{display:block;color:var(--blue);margin-bottom:2px}.legend{padding:14px 20px;color:#667788;font-size:13px;border-top:1px solid var(--line)}
-@media(max-width:700px){.wrap{margin:12px auto}.day{min-height:95px;padding:5px}.event{font-size:10px}.dow{font-size:11px}h1{font-size:22px}}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;color:#203040}
+main{max-width:1150px;margin:25px auto;padding:15px}
+header,.calendar{background:#fff;border-radius:16px;padding:20px;box-shadow:0 5px 20px #0001;margin-bottom:18px}
+h1{margin:0 0 6px;color:#0b4f8a}
+.sub{color:#667788}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+button,select{padding:10px 13px;border:1px solid #ccd6e0;border-radius:9px;background:#fff;cursor:pointer;font-size:14px}
+button{background:#0b4f8a;color:#fff}
+#status{margin-top:12px;font-size:13px;color:#667788}
+#status.error{color:#b42318}
+.title{font-size:21px;font-weight:bold;text-transform:capitalize;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.dow{background:#0b4f8a;color:#fff;text-align:center;padding:11px;font-weight:bold}
+.day{min-height:125px;border:1px solid #e1e7ed;border-top:0;padding:8px;background:#fff}
+.muted{background:#fafafa;color:#a7afb8}
+.num{font-weight:bold;margin-bottom:7px}
+.event{margin-top:6px;padding:7px;background:#e8f1fa;border-left:4px solid #0b4f8a;border-radius:6px;font-size:12px;line-height:1.35}
+.event b{display:block;color:#0b4f8a;margin-bottom:3px}
+.has-event{background:#e8f1fa}
+.status-apartado{border-left-color:#f0a500}
+.status-confirmado{border-left-color:#2e8b57}
+.status-cancelado{border-left-color:#c62828}
+.footer{font-size:12px;color:#667788;margin-top:14px}
+@media(max-width:700px){
+  main{margin:8px auto;padding:8px}
+  header,.calendar{padding:13px}
+  h1{font-size:22px}
+  .day{min-height:95px;padding:5px}
+  .event{font-size:10px;padding:5px}
+  .dow{font-size:11px;padding:8px 3px}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-<section class="header">
+<main>
+<header>
 <h1>Calendario de Eventos Zurich</h1>
-<div class="sub">Los datos se cargan directamente desde Google Sheets.</div>
+<div class="sub">Los eventos se leen directamente de la pestaña <b>Eventos</b> de Google Sheets.</div>
 <div class="controls">
-<button onclick="prevMonth()">‹ Mes anterior</button>
-<button class="primary" onclick="today()">Hoy</button>
-<button onclick="nextMonth()">Mes siguiente ›</button>
-<select id="month" onchange="jump()"></select>
-<select id="year" onchange="jump()"></select>
+<button onclick="changeMonth(-1)">‹ Mes anterior</button>
+<button onclick="goToday()">Hoy</button>
+<button onclick="changeMonth(1)">Mes siguiente ›</button>
+<select id="month" onchange="selectMonth()"></select>
+<select id="year" onchange="selectMonth()"></select>
+<button onclick="loadEvents()">↻ Actualizar datos</button>
 </div>
-<div id="status" class="status">Cargando información…</div>
-</section>
+<div id="status">Cargando datos…</div>
+</header>
+
 <section class="calendar">
 <div id="title" class="title"></div>
-<div class="grid" id="calendar"></div>
-<div class="legend">Actualización: los datos se vuelven a consultar al recargar la página.</div>
+<div id="calendar" class="grid"></div>
+<div class="footer">Fuente: Google Sheets · Pestaña Eventos · Columnas J:M. Al agregar una fecha y sus datos en la tabla, el evento aparecerá en el día correspondiente.</div>
 </section>
-</div>
+</main>
 
 <script>
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRD40pbilCXxwy-3JrpWt9LjCy4Y7AvLO19tieZNqUfGf6V4WUc7bQK0hNCAhLaOg/pub?gid=280662515&single=true&output=csv";
-const monthNames=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
-const dow=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
-let events=[], view=new Date(new Date().getFullYear(),new Date().getMonth(),1);
+const SHEET_ID="1yf084t74b-gowNTnsVLj0mJAdW9RXEax";
+const GID="280662515";
+const MONTHS=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const DAYS=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+let events=[];
+let view=new Date();
 
-function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
-function normalize(s){return String(s??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase()}
-function parseCSV(text){
-  const rows=[];let row=[],field="",quoted=false;
-  for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];
-    if(c=='"'){if(quoted&&n=='"'){field+='"';i++}else quoted=!quoted}
-    else if(c==','&&!quoted){row.push(field);field=""}
-    else if((c=='\n'||c=='\r')&&!quoted){if(c=='\r'&&n=='\n')i++;row.push(field);field="";if(row.some(x=>x.trim()!=""))rows.push(row);row=[]}
-    else field+=c;
-  }
-  if(field.length||row.length){row.push(field);rows.push(row)}
-  return rows;
+function esc(v){
+  return String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 }
-function dateFromValue(v){
-  v=String(v??"").trim();
-  if(!v)return null;
-  let m=v.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
-  if(m)return new Date(+m[1],+m[2]-1,+m[3]);
-  m=v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if(m)return new Date(+m[3],+m[2]-1,+m[1]);
-  const d=new Date(v);return isNaN(d)?null:d;
+function key(d){
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 }
-function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
-function mondayIndex(d){return(d.getDay()+6)%7}
+function parseDate(value){
+  let s=String(value||"").trim();
+  if(!s) return null;
+
+  // dd/mm/yyyy, dd-mm-yyyy
+  let m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m) return new Date(+m[3],+m[2]-1,+m[1]);
+
+  // yyyy-mm-dd
+  m=s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if(m) return new Date(+m[1],+m[2]-1,+m[3]);
+
+  // Google sometimes returns Date(2026,7,20)
+  m=s.match(/Date\((\d{4}),(\d{1,2}),(\d{1,2})\)/);
+  if(m) return new Date(+m[1],+m[2],+m[3]);
+
+  const d=new Date(s);
+  return isNaN(d.getTime())?null:d;
+}
+
+function statusClass(status){
+  const s=String(status||"").trim().toLowerCase();
+  if(s.includes("apart")) return " status-apartado";
+  if(s.includes("confirm")) return " status-confirmado";
+  if(s.includes("cancel")) return " status-cancelado";
+  return "";
+}
 
 function render(){
-  document.getElementById("title").textContent=monthNames[view.getMonth()]+" "+view.getFullYear();
-  const cal=document.getElementById("calendar");cal.innerHTML="";
-  dow.forEach(x=>{const e=document.createElement("div");e.className="dow";e.textContent=x;cal.appendChild(e)});
-  const first=new Date(view.getFullYear(),view.getMonth(),1),start=new Date(first);
-  start.setDate(1-mondayIndex(first));
+  document.getElementById("title").textContent=MONTHS[view.getMonth()]+" "+view.getFullYear();
+  const cal=document.getElementById("calendar");
+  cal.innerHTML="";
+  DAYS.forEach(d=>{
+    const el=document.createElement("div");
+    el.className="dow";
+    el.textContent=d;
+    cal.appendChild(el);
+  });
+
+  const first=new Date(view.getFullYear(),view.getMonth(),1);
+  const start=new Date(first);
+  start.setDate(1-((first.getDay()+6)%7));
+
   for(let i=0;i<42;i++){
-    const d=new Date(start);d.setDate(start.getDate()+i);
-    const cell=document.createElement("div");cell.className="day"+(d.getMonth()!=view.getMonth()?" muted":"");
-    const n=document.createElement("div");n.className="num";n.textContent=d.getDate();cell.appendChild(n);
-    events.filter(e=>e.fecha===iso(d)).forEach(e=>{
-      const ev=document.createElement("div");ev.className="event";
-      ev.innerHTML="<strong>"+escapeHtml(e.responsable||"Evento")+"</strong>"+
-        (e.direccion?"📍 "+escapeHtml(e.direccion)+"<br>":"")+
-        (e.estatus?"Estado: "+escapeHtml(e.estatus):"");
-      cell.appendChild(ev);
+    const d=new Date(start);
+    d.setDate(start.getDate()+i);
+
+    const cell=document.createElement("div");
+    cell.className="day"+(d.getMonth()!==view.getMonth()?" muted":"");
+
+    const num=document.createElement("div");
+    num.className="num";
+    num.textContent=d.getDate();
+    cell.appendChild(num);
+
+    const dayEvents=events.filter(e=>e.date===key(d));
+    if(dayEvents.length) cell.classList.add("has-event");
+
+    dayEvents.forEach(e=>{
+      const item=document.createElement("div");
+      item.className="event"+statusClass(e.estatus);
+      item.innerHTML=
+        "<b>"+esc(e.responsable||"Evento")+"</b>"+
+        (e.direccion?"📍 "+esc(e.direccion)+"<br>":"")+
+        (e.estatus?"Estado: "+esc(e.estatus):"");
+      cell.appendChild(item);
     });
+
     cal.appendChild(cell);
   }
+
   fillSelectors();
 }
+
 function fillSelectors(){
-  const m=document.getElementById("month"),y=document.getElementById("year");
-  m.innerHTML=monthNames.map((x,i)=>`<option value="${i}">${x}</option>`).join("");
-  const years=new Set();
-  events.forEach(e=>{const d=e.fecha.slice(0,4);if(d)years.add(+d)});
-  years.add(view.getFullYear());
-  y.innerHTML=[...years].sort((a,b)=>a-b).map(v=>`<option value="${v}">${v}</option>`).join("");
-  m.value=view.getMonth();y.value=view.getFullYear();
-}
-function jump(){view=new Date(+year.value,+month.value,1);render()}
-function prevMonth(){view.setMonth(view.getMonth()-1);render()}
-function nextMonth(){view.setMonth(view.getMonth()+1);render()}
-function today(){const d=new Date();view=new Date(d.getFullYear(),d.getMonth(),1);render()}
+  document.getElementById("month").innerHTML=
+    MONTHS.map((m,i)=>'<option value="'+i+'">'+m+'</option>').join("");
 
-async function loadData(){
+  const years=new Set([view.getFullYear()]);
+  events.forEach(e=>years.add(+e.date.slice(0,4)));
+
+  document.getElementById("year").innerHTML=
+    [...years].sort((a,b)=>a-b).map(y=>'<option value="'+y+'">'+y+'</option>').join("");
+
+  document.getElementById("month").value=view.getMonth();
+  document.getElementById("year").value=view.getFullYear();
+}
+
+function changeMonth(n){
+  view.setMonth(view.getMonth()+n);
+  render();
+}
+function goToday(){
+  const d=new Date();
+  view=new Date(d.getFullYear(),d.getMonth(),1);
+  render();
+}
+function selectMonth(){
+  view=new Date(
+    +document.getElementById("year").value,
+    +document.getElementById("month").value,
+    1
+  );
+  render();
+}
+
+/*
+  Usamos Google Visualization (GViz) en lugar del CSV.
+  Esto lee los valores mostrados por las fórmulas de Google Sheets.
+  La fila 6 es el encabezado y las columnas J:M contienen:
+  Fecha | Responsable de evento | Dirección | Estatus
+*/
+function loadEvents(){
   const status=document.getElementById("status");
-  try{
-    const response=await fetch(CSV_URL+"&_="+Date.now(),{cache:"no-store"});
-    if(!response.ok)throw new Error("No se pudo leer Google Sheets.");
-    const text=await response.text();
-    const rows=parseCSV(text);
-    if(rows.length<2)throw new Error("La hoja publicada no contiene filas suficientes.");
+  status.className="";
+  status.textContent="Cargando datos desde Google Sheets…";
 
-    // Busca encabezados aunque estén en español y con acentos.
-    const header=rows[0].map(normalize);
-    const findCol=(names)=>{
-      for(const name of names){const i=header.indexOf(normalize(name));if(i>=0)return i}
-      return -1;
-    };
-    const fechaCol=findCol(["fecha","date"]);
-    const respCol=findCol(["responsable","responsable de evento","responsable del evento"]);
-    const dirCol=findCol(["direccion","dirección","domicilio"]);
-    const estCol=findCol(["estatus","estado","status"]);
+  const callback="zurichCallback_"+Date.now();
 
-    if(fechaCol<0)throw new Error("No encontré una columna llamada Fecha en la hoja publicada.");
+  window[callback]=function(response){
+    try{
+      if(!response || response.status!=="ok"){
+        throw new Error("Google Sheets no devolvió los datos.");
+      }
 
-    events=rows.slice(1).map(r=>{
-      const d=dateFromValue(r[fechaCol]);
-      return d?{
-        fecha:iso(d),
-        responsable:respCol>=0?r[respCol]:"",
-        direccion:dirCol>=0?r[dirCol]:"",
-        estatus:estCol>=0?r[estCol]:""
-      }:null;
-    }).filter(Boolean);
+      const rows=(response.table && response.table.rows)||[];
+      events=[];
 
-    status.textContent="✓ Datos actualizados desde Google Sheets · "+events.length+" evento(s)";
-    status.classList.remove("error");
-    render();
-  }catch(err){
-    status.textContent="No se pudo cargar Google Sheets: "+err.message;
-    status.classList.add("error");
-    render();
-  }
+      rows.forEach(row=>{
+        const cells=row.c||[];
+        const dateValue=cells[0] ? (cells[0].v || cells[0].f) : "";
+        const responsable=cells[1] ? (cells[1].v || cells[1].f) : "";
+        const direccion=cells[2] ? (cells[2].v || cells[2].f) : "";
+        const estatus=cells[3] ? (cells[3].v || cells[3].f) : "";
+
+        const d=parseDate(dateValue);
+        if(d){
+          events.push({
+            date:key(d),
+            responsable:responsable,
+            direccion:direccion,
+            estatus:estatus
+          });
+        }
+      });
+
+      status.textContent="✓ "+events.length+" evento(s) cargados desde Google Sheets.";
+      render();
+    }catch(err){
+      status.className="error";
+      status.textContent="⚠️ "+err.message;
+      render();
+    }finally{
+      delete window[callback];
+      const old=document.getElementById(callback);
+      if(old) old.remove();
+    }
+  };
+
+  const script=document.createElement("script");
+  script.id=callback;
+  script.src=
+    "https://docs.google.com/spreadsheets/d/"+SHEET_ID+
+    "/gviz/tq?gid="+GID+
+    "&range=J6:M"+
+    "&headers=1"+
+    "&tqx=responseHandler:"+callback+
+    "&t="+Date.now();
+
+  script.onerror=function(){
+    status.className="error";
+    status.textContent="⚠️ No fue posible conectar con Google Sheets.";
+    delete window[callback];
+    script.remove();
+  };
+
+  document.body.appendChild(script);
 }
+
 render();
-loadData();
+loadEvents();
 </script>
 </body>
 </html>
